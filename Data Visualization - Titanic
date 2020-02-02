@@ -1,0 +1,141 @@
+import pandas as pd
+import numpy as np
+from pandas import Series, DataFrame
+
+path = '/Users/ryanbowlin/Desktop/Coding/Python/Udemy Data/test.csv'
+titanic_df = pd.read_csv(path, sep = ',')
+
+titanic_df.head()
+titanic_df.info()
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+%matplotlib inline
+
+sns.catplot('Sex',data=titanic_df, kind = 'count')
+sns.catplot('Sex',data=titanic_df, kind = 'count',hue = 'Pclass')
+sns.catplot('Pclass',data=titanic_df,kind = 'count', hue = 'Sex')
+
+# make a function
+def male_female_child(passenger):
+    age, sex = passenger
+    
+    if age < 16:
+        return 'child'
+    else:
+        return sex
+        
+titanic_df['person'] = titanic_df[['Age','Sex']].apply(male_female_child,axis = 1)
+titanic_df.head(10)
+
+sns.catplot('Pclass', data = titanic_df, kind = 'count', hue = 'person')
+titanic_df['Age'].hist(bins = 70)
+titanic_df['Age'].mean()
+# Count unique values
+titanic_df['person'].value_counts()
+
+fig = sns.FacetGrid(titanic_df, hue = 'Sex',aspect=4)
+
+fig.map(sns.kdeplot,'Age',shade=True)
+
+
+# Change Axis (aspect ratio)
+oldest = titanic_df['Age'].max()
+fig.set(xlim = (0,oldest))
+
+#Add Legend
+fig.add_legend()
+
+fig = sns.FacetGrid(titanic_df, hue = 'person',aspect=4)
+
+fig.map(sns.kdeplot,'Age',shade=True)
+
+
+# Change Axis (aspect ratio)
+oldest = titanic_df['Age'].max()
+fig.set(xlim = (0,oldest))
+
+#Add Legend
+fig.add_legend()
+
+fig = sns.FacetGrid(titanic_df, hue = 'Pclass',aspect=4)
+
+fig.map(sns.kdeplot,'Age',shade=True)
+
+
+# Change Axis (aspect ratio)
+oldest = titanic_df['Age'].max()
+fig.set(xlim = (0,oldest))
+
+#Add Legend
+fig.add_legend()
+
+# Drop nan values
+deck = titanic_df['Cabin'].dropna()
+
+deck.head()
+
+# Slicing Data
+levels = []
+
+for level in deck:
+    levels.append(level[0])
+    
+cabin_df = DataFrame(levels)
+cabin_df.columns=['Cabin']
+
+sns.catplot('Cabin',data = cabin_df,palette = 'summer', kind = 'count')
+
+# Palette Examples
+url = 'https://matplotlib.org/users/colormaps.html'
+
+sns.catplot('Embarked',data = titanic_df, kind='count', hue='Pclass')
+
+titanic_df['Alone'] = titanic_df.SibSp + titanic_df.Parch
+
+titanic_df['Alone'].loc[titanic_df['Alone'] > 0] = 'With Family'
+
+titanic_df['Alone'].loc[titanic_df['Alone'] == 0] = 'Alone'
+
+sns.catplot('Alone', data = titanic_df, kind = 'count', palette = 'Blues')
+
+# EXAMPLE: Column not in dataset
+from numpy.random import randn
+titanic_df['Survivor'] = np.random.randint(0,6,titanic_df.shape[0])
+
+titanic_df['Survived'] = titanic_df.Survivor.map({0:'No',1:'Yes',
+                                                 2:'No', 3:'Yes',
+                                                  4:'No',5:'Yes',
+                                                 6: 'No'})
+titanic_df['Survivor'] = titanic_df.Survived.map({'Yes': 0,
+                                                 'No': 1})
+
+titanic_df['Survived'] = titanic_df.Survivor.map({1: 'No',
+                                                 0: 'Yes'})
+                                                 
+sns.catplot('Survived',data = titanic_df, kind = 'count', palette = 'Set1')
+
+sns.lmplot('Age','Survivor',data=titanic_df)
+
+sns.catplot('Pclass', 'Survivor',data = titanic_df, kind = 'point',
+            orient ="v")
+            
+sns.catplot('Pclass', 'Survivor',data = titanic_df, kind = 'point',
+            orient ="v", hue = 'person')
+            
+sns.lmplot('Age','Survivor',data = titanic_df)
+
+sns.lmplot('Age','Survivor',data = titanic_df, hue = 'Pclass',
+           palette = 'winter_d')
+           
+# Age Bins
+generations = [10,20,30,40,60,80]
+
+sns.lmplot('Age','Survivor', hue = 'Pclass', data = titanic_df,
+           palette = 'winter', x_bins = generations)
+           
+           
+sns.lmplot('Age','Survivor',hue = 'Sex', data = titanic_df,
+           palette = 'summer', x_bins = generations)
+           
+           
