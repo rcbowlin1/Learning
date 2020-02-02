@@ -1,0 +1,161 @@
+# For data
+import numpy as np
+import pandas as pd
+from pandas import Series, DataFrame
+
+# For visualizations
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_style('whitegrid')
+%matplotlib inline
+
+# Use to grab data from the web (HTTP capabilities)
+import requests
+
+# Use StringIO to work with csv file
+from io import StringIO
+
+url = 'http://elections.huffingtonpost.com/pollster/2012-general-election-romney-vs-obama.csv'
+
+# Use requests to get the information in text form
+source = requests.get(url).text
+
+# Use StringIO to avoid an IO error with pandas
+poll_data = StringIO(source)
+
+# Set poll_data as pandas df
+poll_df = pd.read_csv(poll_data)
+
+# Info method for basic information on dataset
+poll_df.info()
+
+sns.catplot('Affiliation',data = poll_df, kind = 'count')
+sns.catplot('Affiliation',data = poll_df, kind = 'count', hue = 'Population')
+poll_df.head()
+
+avg = pd.DataFrame(poll_df.mean())
+
+avg.drop(['Number of Observations','Question Text', 'Question Iteration'],axis = 0, inplace = True)
+
+std = pd.DataFrame(poll_df.std())
+
+std.drop(['Number of Observations','Question Text', 'Question Iteration'],axis = 0, inplace = True)
+
+std.head()
+
+# Set y-error = to the standard deviation
+avg.plot(yerr = std, kind = 'bar', legend = False)
+
+poll_avg = pd.concat([avg,std],axis = 1)
+poll_avg.columns = ['Average','STD']
+poll_avg.head()
+
+poll_df.plot(x = 'End Date',y = ['Obama','Romney','Undecided'],
+             linestyle = '', marker = 'o')
+             
+from datetime import datetime
+# Difference between Obama and Romney in the polls
+poll_df['Difference'] = (poll_df.Obama - poll_df.Romney) / 100
+poll_df.head()
+
+# as_index = False keeps the current index
+# if as_index = True then the groupby becomes the index
+poll_df = poll_df.groupby(['Start Date'], as_index = False).mean()
+
+poll_df.head()
+
+poll_df.plot('Start Date','Difference',figsize =(12,4),marker = 'o',
+            linestyle = '-', color = 'purple')
+            
+row_in = 0
+xlimit = []
+
+# Brings in index of rows in October for plotting
+for date in poll_df['Start Date']:
+    if date[0:7] == '2012-10':
+        xlimit.append(row_in)
+        row_in += 1
+    else:
+        row_in += 1
+print(min(xlimit))
+print(max(xlimit))
+
+poll_df.plot('Start Date','Difference',figsize =(12,4),marker = 'o',
+            linestyle = '-', color = 'green', xlim=(325,352))
+
+# x = index of start + number of days to get to date from Oct 1
+# Debate Oct 3
+plt.axvline(x = 329 + 2, linewidth = 4, color = 'grey')
+
+# Debate Oct 11
+plt.axvline(x = 329 + 10, linewidth = 4, color = 'grey')
+
+# Debate Oct 22
+plt.axvline(x = 329 + 21, linewidth = 4, color = 'grey')
+
+url = 'https://www.dropbox.com/s/l29oppon2veaq4n/Election_Donor_Data.csv?d|=0'
+donor_df = pd.read_csv('/Users/ryanbowlin/Downloads/Election_Donor_Data.csv')
+
+donor_df.info()
+donor_df.head()
+
+donor_df['contb_receipt_amt'].value_counts()
+
+don_mean = donor_df['contb_receipt_amt'].mean()
+don_std = donor_df['contb_receipt_amt'].std()
+
+print('The average donation was %.2f with a std %.2f' %(don_mean,don_std))
+
+top_donor = donor_df['contb_receipt_amt'].copy()
+
+top_donor.sort_values( inplace = True)
+
+top_donor
+
+top_donor = top_donor[top_donor > 0]
+top_donor.value_counts().head(10)
+
+com_don1 = top_donor[top_donor < 2500]
+
+com_don1.hist(bins = 30)
+
+# List of candidates from df
+candidates = donor_df.cand_nm.unique()
+candidates
+
+# Party affiliation column
+donor_df['Party']=np.where(donor_df['cand_nm'] == 'Obama, Barack','Democrat','Republican')
+
+donor_df = donor_df[donor_df.contb_receipt_amt > 0]
+donor_df.groupby('cand_nm')['contb_receipt_amt'].count()
+
+donor_df.groupby('cand_nm')['contb_receipt_amt'].sum()
+
+cand_amt = donor_df.groupby('cand_nm')['contb_receipt_amt'].sum()
+
+i = 0
+
+for don in cand_amt:
+    print('The candidate %s raised %.0f dollars'%(cand_amt.index[i],don))
+    print('\n')
+    i += 1
+    
+cand_amt.plot(kind = 'bar')
+
+donor_df.groupby('Party')['contb_receipt_amt'].sum().plot(kind = 'bar')
+
+occupation_df = donor_df.pivot_table('contb_receipt_amt',
+                                    index = 'contbr_occupation',
+                                    columns = 'Party',
+                                    aggfunc = 'sum')
+                                    
+occupation_df.plot(kind = 'barh', figsize = (10,15),cmap = 'seismic')
+
+occupation_df.drop(['INFORMATION REQUESTED PER BEST EFFORTS',
+                   'INFORMATION REQUESTED'],axis = 0, inplace = True)
+                   
+occupation_df.loc['CEO'] = occupation_df.loc['CEO'] + occupation_df.loc['C.E.O.']
+occupation_df.drop('C.E.O.', inplace = True)
+occupation_df.plot(kind = 'barh', figsize = (10,12),cmap = 'seismic')
+
+occupation_df.replace
