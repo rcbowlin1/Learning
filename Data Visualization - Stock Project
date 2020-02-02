@@ -1,0 +1,202 @@
+import pandas as pd
+from pandas import Series, DataFrame
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_style('whitegrid')
+%matplotlib inline
+import pandas_datareader as pdr
+from pandas_datareader import DataReader
+import datetime
+from datetime import datetime
+from datetime import date
+import scipy.stats as stats
+
+tech_list = ['AAPL','GOOG','MSFT','AMZN']
+#end = datetime.now()
+end2 = date(2019,10,1)
+start = datetime(end2.year-1,end2.month,end2.day)
+
+# globals makes the stock ticker a global variable (makes the name the df)
+# for loop to load data
+for stock in tech_list: 
+    globals()[stock] = DataReader(stock,'yahoo',start,end2)
+    
+AAPL.describe()
+
+AAPL.info()
+
+# plot adj close
+AAPL['Adj Close'].plot(legend = True, figsize=(10,4))
+
+# plot volume
+AAPL['Volume'].plot(legend = True,figsize = (10,4))
+
+# Pandas has a built-in rolling mean calculator
+
+ma_day = [10,20,50]
+
+for ma in ma_day:
+    column_name = "MA for %s days" %(str(ma))
+    
+    AAPL[column_name] = AAPL['Adj Close'].rolling(window=ma).mean()
+    
+AAPL[['Adj Close','MA for 10 days','MA for 20 days', 'MA for 50 days']].plot(subplots = False,
+                                                                            figsize = (10,4))
+                                                                            
+AAPL['Daily Return'] = AAPL['Adj Close'].pct_change()
+AAPL['Daily Return'].plot(figsize = (10,4), legend = True,
+                          linestyle = '--', marker = 'o')
+                          
+# Avg Daily Return
+sns.distplot(AAPL['Daily Return'].dropna(),bins = 100, color = 'purple')
+
+closing_df = DataReader(tech_list,'yahoo',start,end2)['Adj Close']
+
+closing_df.head()
+
+tech_rets = closing_df.pct_change()
+tech_rets.head()
+
+sns.jointplot('AAPL','GOOG',tech_rets, kind = 'scatter',color = 'seagreen')
+#s.annotate(stats.pearsonr)
+
+sns.jointplot('AAPL','MSFT',tech_rets,kind = 'scatter')
+
+from IPython.display import SVG
+SVG(url = 'http://upload.wikimedia.org/wikipedia/commons/d/d4/Correlation_examples2.svg')
+
+sns.pairplot(tech_rets.dropna())
+
+# more control over the charts
+returns_fig = sns.PairGrid(tech_rets.dropna())
+
+
+# Upper is above the histograms (charts above)
+returns_fig.map_upper(plt.scatter,color = 'purple')
+
+# Lower is below the histograms (charts above)
+returns_fig.map_lower(sns.kdeplot,cmap='cool_d')
+
+# diag is the diganlow through the middle
+returns_fig.map_diag(plt.hist,bins = 30)
+
+# Correlation of Closing Prices
+# more control over the charts
+returns_fig = sns.PairGrid(closing_df.dropna())
+
+
+# Upper is above the histograms (charts above)
+returns_fig.map_upper(plt.scatter,color = 'purple')
+
+# Lower is below the histograms (charts above)
+returns_fig.map_lower(sns.kdeplot,cmap='cool_d')
+
+# diag is the diganlow through the middle
+returns_fig.map_diag(plt.hist,bins = 30)
+
+# Correlation Plot
+
+sns.heatmap(tech_rets.dropna().corr(),annot = True)
+
+RISK ANALYSIS
+
+rets = tech_rets.dropna()
+# define are of circle for scatter plots
+area = np.pi*20
+
+plt.scatter(rets.mean(),rets.std(), s = area)
+
+
+plt.xlabel('Expected Return')
+plt.ylabel('Risk')
+
+# Label the scatter plots, for mor info check out link below
+# http://matplotlib.org/users/annotations_guide.html
+
+for label, x, y in zip(rets.columns, rets.mean(), rets.std()):
+    plt.annotate(
+    label,
+    xy = (x,y), xytext = (50,50),
+    textcoords = 'offset points', ha = 'right',va='bottom',
+        arrowprops = dict(arrowstyle = '-',connectionstyle = 'arc3,rad=-0.3',
+                         facecolor='black'))
+                         
+# Not the use of dropna() here, otherwise the Nan value can't be read by seaborn
+sns.distplot(AAPL['Daily Return'].dropna(),bins = 100, color = 'purple')
+
+# Empirical Quantile - 95% of the time your worse daily loss < answer
+rets['AAPL'].quantile(0.05)
+
+MONTE CARLO METHOD
+
+# Set up Time Horizon
+days = 365
+
+# Now our delta
+dt = 1/days
+
+# Now let's grab our mu (drift) from the expected return data we 
+mu = rets.mean()['GOOG']
+
+# Volatility of Stock
+sigma = rets.std()['GOOG']
+
+def stock_monte_carlo(start_price,days,mu,sigma):
+    
+    price = np.zeros(days)
+    price[0] = start_price
+    
+    shock = np.zeros(days)
+    drift = np.zeros(days)
+    
+    for x in range(1,days):
+        
+        shock[x] = np.random.normal(loc=mu*dt,scale = sigma * np.sqrt(dt))
+        
+        drift[x] = mu * dt
+        
+        price[x] = price[x-1] + (price[x-1] * (drift[x] + shock[x]))
+        
+    return price
+    
+    
+start_price = 1199.89
+
+for run in range(100):
+    plt.plot(stock_monte_carlo(start_price,days,mu,sigma))
+    
+plt.xlabel('Days')
+plt.ylabel('Price')
+plt.title('Monte Carlo Analysis for Google')
+
+# Make Histogram of end results
+
+runs = 10000
+
+simulations = np.zeros(runs)
+
+for run in range(runs):
+    simulations[run] = stock_monte_carlo(start_price,days,mu,sigma)[days-1]
+    
+#use qunatile to define our risk for this stock.
+# Now we'lll define q as the 1% empirical qunatile, this basically means that 99% of the values should fall between here
+q = np.percentile(simulations, 1)
+# Now let's plot the distribution of the end prices
+plt.hist(simulations,bins=200)
+
+# Using plt.figtext to fill in some additional information onto the plot
+
+# Starting Price
+plt.figtext(0.6, 0.8, s="Start price: $%.2f" %start_price)
+# Mean ending price
+plt.figtext(0.6, 0.7, "Mean final price: $%.2f" % simulations.mean())
+
+# Variance of the price (within 99% confidence interval)
+plt.figtext(0.6, 0.6, "VaR(0.99): $%.2f" % (start_price - q,))
+
+# Display 1% quantile
+plt.figtext(0.15, 0.6, "q(0.99): $%.2f" % q)
+
+# Plot a line at the 1% quantile result
+plt.axvline(x=q, linewidth=4, color='r')    
